@@ -1,84 +1,86 @@
 name: Build Android APK (TWA)
 
 on:
- workflow_dispatch:
- push:
-   branches: [ main ]
+  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
- build:
-   runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-   steps:
-     - name: Checkout
-       uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-     - name: Setup Java
-       uses: actions/setup-java@v4
-       with:
-         distribution: 'temurin'
-         java-version: '17'
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-     - name: Setup Android SDK
-       uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-     - name: Install Bubblewrap
-       run: npm install -g @bubblewrap/cli
+      - name: Clone TWA Quickstart
+        run: |
+          git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa-app
 
-     - name: Create twa-manifest.json
-       run: |
-         cat > twa-manifest.json << 'MANIFEST'
-         {
-           "packageId": "com.kitty.private",
-           "host": "amirsr5.github.io",
-           "startUrl": "/Kitty.GitHub.io/",
-           "name": "Kitty Private",
-           "launcherName": "Kitty Private",
-           "display": "standalone",
-           "orientation": "portrait",
-           "themeColor": "#e91e8c",
-           "navigationColor": "#e91e8c",
-           "navigationColorDark": "#e91e8c",
-           "navigationDividerColor": "#e91e8c",
-           "backgroundColor": "#fce4ec",
-           "enableNotifications": false,
-           "signingKey": {
-             "path": "./android.keystore",
-             "alias": "kitty"
-           },
-           "appVersionCode": 1,
-           "appVersionName": "1.0.0",
-           "shortcuts": [],
-           "generatorApp": "bubblewrap-cli",
-           "webManifestUrl": "https://amirsr5.github.io/Kitty.GitHub.io/manifest.json",
-           "isChromeOSOnly": false,
-           "isMetaQuest": false,
-           "fullScopeUrl": "https://amirsr5.github.io/Kitty.GitHub.io/",
-           "minSdkVersion": 21,
-           "targetSdkVersion": 32
-         }
-         MANIFEST
+      - name: Configure TWA app
+        run: |
+          cd twa-app
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <string name="app_name">Kitty Private</string>
+            <string name="launcher_name">Kitty Private</string>
+            <string name="asset_statements">[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://amirsr5.github.io\"}}]</string>
+          </resources>
+          EOF
 
-     - name: Generate keystore
-       run: |
-         keytool -genkey -v \
-           -keystore android.keystore \
-           -alias kitty \
-           -keyalg RSA \
-           -keysize 2048 \
-           -validity 10000 \
-           -storepass kitty123 \
-           -keypass kitty123 \
-           -dname "CN=Kitty Private, OU=App, O=Kitty, L=Tehran, S=Tehran, C=IR"
+          cat > app/src/main/res/values/twa_strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <string name="hostName">amirsr5.github.io</string>
+            <string name="launchUrl">https://amirsr5.github.io/Kitty.GitHub.io/</string>
+            <string name="defaultUrl">https://amirsr5.github.io/Kitty.GitHub.io/</string>
+            <string name="navigationColor">#e91e8c</string>
+            <string name="navigationColorDark">#e91e8c</string>
+            <string name="navigationDividerColor">#e91e8c</string>
+            <string name="backgroundColor">#fce4ec</string>
+            <string name="themeColor">#e91e8c</string>
+          </resources>
+          EOF
 
-     - name: Build with Bubblewrap
-       run: printf "No\n$(which java | sed 's|/bin/java||')\n" | bubblewrap build --manifest twa-manifest.json --skipPwaValidation
+          sed -i 's/applicationId "com.google.samples.svgomg"/applicationId "com.kitty.private"/' app/build.gradle
+          sed -i 's/versionCode 1/versionCode 1/' app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "1.0.0"/' app/build.gradle
 
-     - name: Upload APK
-       uses: actions/upload-artifact@v4
-       with:
-         name: KittyPrivate-APK
-         path: |
-           app-release-signed.apk
-           app-release-unsigned.apk
-         retention-days: 30
+      - name: Generate keystore
+        run: |
+          keytool -genkey -v \
+            -keystore twa-app/kitty.keystore \
+            -alias kitty \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass kitty123 \
+            -keypass kitty123 \
+            -dname "CN=Kitty, O=Kitty, C=IR"
+
+      - name: Build APK
+        run: |
+          cd twa-app
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/kitty.keystore \
+            -Pandroid.injected.signing.store.password=kitty123 \
+            -Pandroid.injected.signing.key.alias=kitty \
+            -Pandroid.injected.signing.key.password=kitty123
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KittyPrivate-APK
+          path: twa-app/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
