@@ -1,84 +1,84 @@
 name: Build Android APK (TWA)
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
+ workflow_dispatch:
+ push:
+   branches: [ main ]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+ build:
+   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+   steps:
+     - name: Checkout
+       uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+     - name: Setup Java
+       uses: actions/setup-java@v4
+       with:
+         distribution: 'temurin'
+         java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+     - name: Setup Android SDK
+       uses: android-actions/setup-android@v3
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
+     - name: Install Bubblewrap
+       run: npm install -g @bubblewrap/cli
 
-      - name: Create twa-manifest.json
-        run: |
-          cat > twa-manifest.json << 'MANIFEST'
-          {
-            "packageId": "com.kitty.private",
-            "host": "amirsr5.github.io",
-            "startUrl": "/Kitty.GitHub.io/",
-            "name": "Kitty Private",
-            "launcherName": "Kitty Private",
-            "display": "standalone",
-            "orientation": "portrait",
-            "themeColor": "#e91e8c",
-            "navigationColor": "#e91e8c",
-            "navigationColorDark": "#e91e8c",
-            "navigationDividerColor": "#e91e8c",
-            "backgroundColor": "#fce4ec",
-            "enableNotifications": false,
-            "signingKey": {
-              "path": "./android.keystore",
-              "alias": "kitty"
-            },
-            "appVersionCode": 1,
-            "appVersionName": "1.0.0",
-            "shortcuts": [],
-            "generatorApp": "bubblewrap-cli",
-            "webManifestUrl": "https://amirsr5.github.io/Kitty.GitHub.io/manifest.json",
-            "isChromeOSOnly": false,
-            "isMetaQuest": false,
-            "fullScopeUrl": "https://amirsr5.github.io/Kitty.GitHub.io/",
-            "minSdkVersion": 21,
-            "targetSdkVersion": 32
-          }
-          MANIFEST
+     - name: Create twa-manifest.json
+       run: |
+         cat > twa-manifest.json << 'MANIFEST'
+         {
+           "packageId": "com.kitty.private",
+           "host": "amirsr5.github.io",
+           "startUrl": "/Kitty.GitHub.io/",
+           "name": "Kitty Private",
+           "launcherName": "Kitty Private",
+           "display": "standalone",
+           "orientation": "portrait",
+           "themeColor": "#e91e8c",
+           "navigationColor": "#e91e8c",
+           "navigationColorDark": "#e91e8c",
+           "navigationDividerColor": "#e91e8c",
+           "backgroundColor": "#fce4ec",
+           "enableNotifications": false,
+           "signingKey": {
+             "path": "./android.keystore",
+             "alias": "kitty"
+           },
+           "appVersionCode": 1,
+           "appVersionName": "1.0.0",
+           "shortcuts": [],
+           "generatorApp": "bubblewrap-cli",
+           "webManifestUrl": "https://amirsr5.github.io/Kitty.GitHub.io/manifest.json",
+           "isChromeOSOnly": false,
+           "isMetaQuest": false,
+           "fullScopeUrl": "https://amirsr5.github.io/Kitty.GitHub.io/",
+           "minSdkVersion": 21,
+           "targetSdkVersion": 32
+         }
+         MANIFEST
 
-      - name: Generate keystore
-        run: |
-          keytool -genkey -v \
-            -keystore android.keystore \
-            -alias kitty \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass kitty123 \
-            -keypass kitty123 \
-            -dname "CN=Kitty Private, OU=App, O=Kitty, L=Tehran, S=Tehran, C=IR"
+     - name: Generate keystore
+       run: |
+         keytool -genkey -v \
+           -keystore android.keystore \
+           -alias kitty \
+           -keyalg RSA \
+           -keysize 2048 \
+           -validity 10000 \
+           -storepass kitty123 \
+           -keypass kitty123 \
+           -dname "CN=Kitty Private, OU=App, O=Kitty, L=Tehran, S=Tehran, C=IR"
 
-      - name: Build with Bubblewrap
-        run: echo "No" | bubblewrap build --manifest twa-manifest.json --skipPwaValidation
+     - name: Build with Bubblewrap
+       run: printf "No\n$(which java | sed 's|/bin/java||')\n" | bubblewrap build --manifest twa-manifest.json --skipPwaValidation
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: KittyPrivate-APK
-          path: |
-            app-release-signed.apk
-            app-release-unsigned.apk
-          retention-days: 30
+     - name: Upload APK
+       uses: actions/upload-artifact@v4
+       with:
+         name: KittyPrivate-APK
+         path: |
+           app-release-signed.apk
+           app-release-unsigned.apk
+         retention-days: 30
