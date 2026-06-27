@@ -17,14 +17,13 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Clone TWA Quickstart
-        run: |
-          git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa-app
+        run: git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa-app
 
       - name: Configure TWA app
         run: |
@@ -53,8 +52,6 @@ jobs:
           EOF
 
           sed -i 's/applicationId "com.google.samples.svgomg"/applicationId "com.kitty.private"/' app/build.gradle
-          sed -i 's/versionCode 1/versionCode 1/' app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "1.0.0"/' app/build.gradle
 
       - name: Generate keystore
         run: |
