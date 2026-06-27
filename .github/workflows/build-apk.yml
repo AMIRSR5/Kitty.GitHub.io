@@ -28,47 +28,123 @@ jobs:
           unzip -q tools.zip
           mv cmdline-tools latest
           export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-          yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platforms;android-32" "build-tools;32.0.0" "platform-tools"
+          yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platforms;android-34" "build-tools;34.0.0" "platform-tools"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
 
-      - name: Clone TWA Quickstart
-        run: git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa-app
+      - name: Create TWA Android Project
+        run: |
+          mkdir -p twa-app/app/src/main/java/com/kitty/private
+          mkdir -p twa-app/app/src/main/res/values
+          mkdir -p twa-app/app/src/main/res/xml
+          mkdir -p twa-app/gradle/wrapper
 
-      - name: Configure TWA app
+          cat > twa-app/settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "KittyPrivate"
+          include ':app'
+          EOF
+
+          cat > twa-app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application' version '8.2.0' apply false
+          }
+          EOF
+
+          cat > twa-app/gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+          cat > twa-app/app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.kitty.private'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.kitty.private"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+          }
+          dependencies {
+              implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+          }
+          EOF
+
+          cat > twa-app/app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:label="Kitty Private"
+                  android:theme="@android:style/Theme.NoTitleBar">
+                  <activity
+                      android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+                      android:exported="true">
+                      <meta-data
+                          android:name="android.support.customtabs.trusted.DEFAULT_URL"
+                          android:value="https://amirsr5.github.io/Kitty.GitHub.io/" />
+                      <meta-data
+                          android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
+                          android:value="#e91e8c" />
+                      <meta-data
+                          android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR"
+                          android:value="#e91e8c" />
+                      <intent-filter android:autoVerify="true">
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      <intent-filter android:autoVerify="true">
+                          <action android:name="android.intent.action.VIEW"/>
+                          <category android:name="android.intent.category.DEFAULT"/>
+                          <category android:name="android.intent.category.BROWSABLE"/>
+                          <data android:scheme="https"
+                              android:host="amirsr5.github.io"
+                              android:pathPrefix="/Kitty.GitHub.io/"/>
+                      </intent-filter>
+                  </activity>
+                  <provider
+                      android:name="androidx.startup.InitializationProvider"
+                      android:authorities="com.kitty.private.androidx-startup"
+                      android:exported="false"
+                      tools:node="merge">
+                  </provider>
+              </application>
+          </manifest>
+          EOF
+
+      - name: Download Gradle wrapper
         run: |
           cd twa-app
-          cat > app/src/main/res/values/strings.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-            <string name="app_name">Kitty Private</string>
-            <string name="launcher_name">Kitty Private</string>
-            <string name="asset_statements">[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://amirsr5.github.io\"}}]</string>
-          </resources>
-          EOF
-
-          cat > app/src/main/res/values/twa_strings.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-            <string name="hostName">amirsr5.github.io</string>
-            <string name="launchUrl">https://amirsr5.github.io/Kitty.GitHub.io/</string>
-            <string name="defaultUrl">https://amirsr5.github.io/Kitty.GitHub.io/</string>
-            <string name="navigationColor">#e91e8c</string>
-            <string name="navigationColorDark">#e91e8c</string>
-            <string name="navigationDividerColor">#e91e8c</string>
-            <string name="backgroundColor">#fce4ec</string>
-            <string name="themeColor">#e91e8c</string>
-          </resources>
-          EOF
-
-          sed -i 's/applicationId "com.google.samples.svgomg"/applicationId "com.kitty.private"/' app/build.gradle
-
-      - name: Setup Java 11 for Gradle
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '11'
+          wget -q https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
+          wget -q https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -O gradlew
+          chmod +x gradlew
 
       - name: Generate keystore
         run: |
@@ -85,7 +161,6 @@ jobs:
       - name: Build APK
         run: |
           cd twa-app
-          chmod +x gradlew
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$(pwd)/kitty.keystore \
             -Pandroid.injected.signing.store.password=kitty123 \
