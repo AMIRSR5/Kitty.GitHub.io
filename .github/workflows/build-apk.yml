@@ -1,48 +1,87 @@
 name: Build Android APK (TWA)
 
 on:
- workflow_dispatch:
- push:
-   branches: [ main ]
+  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
- build:
-   runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-   steps:
-     - name: Checkout
-       uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-     - name: Setup Node.js
-       uses: actions/setup-node@v4
-       with:
-         node-version: '18'
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-     - name: Setup Java
-       uses: actions/setup-java@v4
-       with:
-         distribution: 'temurin'
-         java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-     - name: Setup Android SDK
-       uses: android-actions/setup-android@v3
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
 
-     - name: Install Bubblewrap
-       run: npm install -g @bubblewrap/cli
+      - name: Create twa-manifest.json
+        run: |
+          cat > twa-manifest.json << 'MANIFEST'
+          {
+            "packageId": "com.kitty.private",
+            "host": "amirsr5.github.io",
+            "startUrl": "/Kitty.GitHub.io/",
+            "name": "Kitty Private",
+            "launcherName": "Kitty Private",
+            "display": "standalone",
+            "orientation": "portrait",
+            "themeColor": "#e91e8c",
+            "navigationColor": "#e91e8c",
+            "navigationColorDark": "#e91e8c",
+            "navigationDividerColor": "#e91e8c",
+            "backgroundColor": "#fce4ec",
+            "enableNotifications": false,
+            "signingKey": {
+              "path": "./android.keystore",
+              "alias": "kitty"
+            },
+            "appVersionCode": 1,
+            "appVersionName": "1.0.0",
+            "shortcuts": [],
+            "generatorApp": "bubblewrap-cli",
+            "webManifestUrl": "https://amirsr5.github.io/Kitty.GitHub.io/manifest.json",
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "fullScopeUrl": "https://amirsr5.github.io/Kitty.GitHub.io/",
+            "minSdkVersion": 21,
+            "targetSdkVersion": 32
+          }
+          MANIFEST
 
-     - name: Init Bubblewrap project
-       run: |
-         mkdir twa-build && cd twa-build
-         bubblewrap init --manifest https://amirsr5.github.io/Kitty.GitHub.io/manifest.json <<< $'com.kitty.private\nKitty Private\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
+      - name: Generate keystore
+        run: |
+          keytool -genkey -v \
+            -keystore android.keystore \
+            -alias kitty \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass kitty123 \
+            -keypass kitty123 \
+            -dname "CN=Kitty Private, OU=App, O=Kitty, L=Tehran, S=Tehran, C=IR"
 
-     - name: Build APK
-       run: |
-         cd twa-build
-         bubblewrap build --skipPwaValidation
+      - name: Build with Bubblewrap
+        run: |
+          bubblewrap build \
+            --manifest twa-manifest.json \
+            --skipPwaValidation
 
-     - name: Upload APK
-       uses: actions/upload-artifact@v4
-       with:
-         name: KittyPrivate-APK
-         path: twa-build/app-release-unsigned.apk
-         retention-days: 30
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KittyPrivate-APK
+          path: |
+            app-release-signed.apk
+            app-release-unsigned.apk
+          retention-days: 30
