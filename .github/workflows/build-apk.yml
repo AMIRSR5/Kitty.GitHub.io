@@ -19,8 +19,9 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK manually
+        run: |
+          echo "y" | sdkmanager "platforms;android-32" "build-tools;32.0.0" "platform-tools"
 
       - name: Clone TWA Quickstart
         run: git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa-app
